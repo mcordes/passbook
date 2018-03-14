@@ -5,11 +5,8 @@ try:
 except ImportError:
     import simplejson as json
 
-try:
-    from cStringIO import StringIO
-except ImportError:
-    from StringIO import StringIO
-
+from six import BytesIO
+import base64
 import hashlib
 import zipfile
 import decimal
@@ -315,7 +312,7 @@ class Pass(object):
         manifest = self._createManifest(pass_json)
         signature = self._createSignature(manifest, certificate, key, wwdr_certificate, password)
         if not zip_file:
-            zip_file = StringIO()
+            zip_file = BytesIO()
         self._createZip(pass_json, manifest, signature, zip_file=zip_file)
         return zip_file
 
@@ -325,7 +322,7 @@ class Pass(object):
     # creates the hashes for the files and adds them into a json string.
     def _createManifest(self, pass_json):
         # Creates SHA hashes for all files in package
-        self._hashes['pass.json'] = hashlib.sha1(pass_json).hexdigest()
+        self._hashes['pass.json'] = hashlib.sha1(pass_json.encode('utf8')).hexdigest()
         for filename, filedata in self._files.items():
             self._hashes[filename] = hashlib.sha1(filedata).hexdigest()
         return json.dumps(self._hashes)
@@ -345,12 +342,13 @@ class Pass(object):
 
         # need to cast to string since load_key doesnt work with unicode paths
         smime.load_key(str(key), certificate, callback=passwordCallback)
-        pk7 = smime.sign(SMIME.BIO.MemoryBuffer(manifest), flags=SMIME.PKCS7_DETACHED | SMIME.PKCS7_BINARY)
+        pk7 = smime.sign(SMIME.BIO.MemoryBuffer(manifest.encode('utf8')), flags=SMIME.PKCS7_DETACHED | SMIME.PKCS7_BINARY)
 
         pem = SMIME.BIO.MemoryBuffer()
         pk7.write(pem)
         # convert pem to der
-        der = ''.join(l.strip() for l in pem.read().split('-----')[2].splitlines()).decode('base64')
+        der = b''.join(l.strip() for l in pem.read().split(b'-----')[2].splitlines())
+        der = base64.b64encode(der)
 
         return der
 
