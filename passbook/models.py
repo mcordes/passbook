@@ -347,9 +347,9 @@ class Pass(object):
         pem = SMIME.BIO.MemoryBuffer()
         pk7.write(pem)
         # convert pem to der
-        der = b''.join(l.strip() for l in pem.read().split(b'-----')[2].splitlines())
-        der = base64.b64encode(der)
 
+        der = b''.join(l.strip() for l in pem.read().split(b'-----')[2].splitlines())
+        der = base64.b64decode(der)
         return der
 
     # Creates .pkpass (zip archive)
